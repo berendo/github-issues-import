@@ -106,9 +106,10 @@ def init_config():
 	if args.comment_template: config.set('format', 'comment_template', args.comment_template)
 	if args.pull_request_template: config.set('format', 'pull_request_template', args.pull_request_template)
 	
-	config.set('settings', 'import-comments',  str(not args.ignore_comments))
-	config.set('settings', 'import-milestone', str(not args.ignore_milestone))
-	config.set('settings', 'import-labels',    str(not args.ignore_labels))
+	config.set('settings', 'import-comments',     str(not args.ignore_comments))
+	config.set('settings', 'import-milestone',    str(not args.ignore_milestone))
+	config.set('settings', 'import-labels',       str(not args.ignore_labels))
+	config.set('settings', 'import-pullrequests', str(not args.ignore_pullrequests))
 	
 	config.set('settings', 'import-open-issues',   str(args.import_all or args.import_open));
 	config.set('settings', 'import-closed-issues', str(args.import_all or args.import_closed));
