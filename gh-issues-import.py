@@ -464,9 +464,9 @@ def import_issues(issues):
 			result_issue = send_request('target', "issues/%s" % result_issue['number'],
 						    result_issue,
 						    method='PATCH')
-			print("Successfully created and closed issue '%s'" % result_issue['title'])
+			print("Successfully created and closed issue #%(number)d '%(title)s'" % {'title': result_issue['title'], 'number': result_issue['number']})
 		else:
-			print("Successfully created issue '%s'" % result_issue['title'])
+			print("Successfully created issue #%(number)d '%(title)s'" % {'title': result_issue['title'], 'number': result_issue['number']})
 		
 		if 'comments' in issue:
 			result_comments = import_comments(issue['comments'], result_issue['number'])		
