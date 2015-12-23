@@ -13,6 +13,8 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 from pytz import timezone
 import pytz
+import subprocess
+import re
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 default_config_file = os.path.join(__location__, 'config.ini')
@@ -74,6 +76,8 @@ def init_config():
 	include_group.add_argument("--closed", dest='import_closed', action='store_true', help="Import only closed issues.")
 	include_group.add_argument("-i", "--issues", type=int, nargs='+', help="The list of issues to import.");
 
+	arg_parser.add_argument('--gist-directory', dest='gist_directory', help="gist")
+	
 	args = arg_parser.parse_args()
 	
 	def load_config_file(config_file_name):
@@ -119,6 +123,7 @@ def init_config():
 	config.set('settings', 'import-open-issues',   str(args.import_all or args.import_open));
 	config.set('settings', 'import-closed-issues', str(args.import_all or args.import_closed));
 	
+	if args.gist_directory: config.set('settings', 'gist-directory', args.gist_directory)
 	
 	# Make sure no required config values are missing
 	if not config.has_option('source', 'repository') :
@@ -319,6 +324,29 @@ def import_comments(comments, issue_number):
 		
 	return result_comments
 
+def import_images(body, hostname=None):
+	hostname = hostname.replace('.', '\.')
+	while True:
+		match = re.search(r'!\[[^\]]+?\]\((https?://%s[^\)]+)\)' % hostname, body)
+		if not match:
+			break
+		asset_link = match.group(1)
+		asset_url = urllib.parse.urlparse(asset_link)
+		asset_filename = os.path.basename(asset_url.path)
+		gist_directory = config.get('settings', 'gist-directory')
+		try:
+			os.remove(os.path.join(gist_directory, asset_filename))
+		except (FileNotFoundError):
+			pass
+		urllib.request.urlretrieve(asset_link, os.path.join(gist_directory, asset_filename))
+		subprocess.check_output('cd %(directory)s && git add %(filename)s && git status --short >/dev/null 2>&1 && (git diff-index --quiet --exit-code HEAD %(filename)s || (git commit -m \'Added %(filename)s.\' %(filename)s && git push))' % {'directory': gist_directory, 'filename': asset_filename}, shell=True)
+		remote = subprocess.check_output('cd %(directory)s && (git remote -v | head -1 | awk \'{print $2}\')' % {'directory': gist_directory}, shell=True).decode("utf-8")
+		gist_link = 'https://gist.githubusercontent.com/berendo' + os.path.splitext(urllib.parse.urlparse(remote).path)[0] + '/raw/' + os.path.basename(asset_filename)
+		body = body.replace(asset_link, gist_link)
+		print('Imported asset from ' + asset_link + ' to ' + gist_link)
+	
+	return body
+
 # Will only import milestones and issues that are in use by the imported issues, and do not exist in the target repository
 def import_issues(issues):
 
@@ -388,6 +416,7 @@ def import_issues(issues):
 		else:
 			new_issue['body'] = format_issue(template_data)
 		
+		new_issue['html_url'] = issue['html_url']
 		new_issues.append(new_issue)
 	
 	state.current = state.IMPORT_CONFIRMATION
@@ -412,6 +441,11 @@ def import_issues(issues):
 	
 	result_issues = []
 	for issue in new_issues:
+		
+		issue['body'] = import_images(issue['body'], urllib.parse.urlparse(issue['html_url']).hostname)
+		
+		for comment in issue['comments']:
+			comment['body'] = import_images(comment['body'], urllib.parse.urlparse(issue['html_url']).hostname)
 		
 		if 'milestone_object' in issue:
 			issue['milestone'] = issue['milestone_object']['number']
