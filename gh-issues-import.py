@@ -11,6 +11,8 @@ import query
 
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
+from pytz import timezone
+import pytz
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 default_config_file = os.path.join(__location__, 'config.ini')
@@ -172,6 +174,7 @@ def format_date(datestring):
 	# The date comes from the API in ISO-8601 format
 	date = datetime.datetime.strptime(datestring, "%Y-%m-%dT%H:%M:%SZ")
 	date_format = config.get('format', 'date', fallback='%A %b %d, %Y at %H:%M GMT', raw=True);
+	date = pytz.utc.localize(date, is_dst=None).astimezone(timezone('/'.join(os.path.realpath('/etc/localtime').split('/')[-2:])))
 	return date.strftime(date_format)
 	
 def format_from_template(template_filename, template_data):
