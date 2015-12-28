@@ -444,9 +444,6 @@ def import_issues(issues):
 		
 		issue['body'] = import_images(issue['body'], urllib.parse.urlparse(issue['html_url']).hostname)
 		
-		for comment in issue['comments']:
-			comment['body'] = import_images(comment['body'], urllib.parse.urlparse(issue['html_url']).hostname)
-		
 		if 'milestone_object' in issue:
 			issue['milestone'] = issue['milestone_object']['number']
 			del issue['milestone_object']
@@ -459,18 +456,20 @@ def import_issues(issues):
 			del issue['label_objects']
 		
 		result_issue = send_request('target', "issues", issue)
+		print("Successfully created issue #%(number)d '%(title)s'" % {'title': result_issue['title'], 'number': result_issue['number']})
+		
+		if 'comments' in issue:
+			for comment in issue['comments']:
+				comment['body'] = import_images(comment['body'], urllib.parse.urlparse(issue['html_url']).hostname)
+			result_comments = import_comments(issue['comments'], result_issue['number'])		
+			print(" > Successfully added", len(result_comments), "comments.")
+		
 		if 'state' in issue and issue['state'] == 'closed':
 			result_issue['state'] = 'closed'
 			result_issue = send_request('target', "issues/%s" % result_issue['number'],
 						    result_issue,
 						    method='PATCH')
-			print("Successfully created and closed issue #%(number)d '%(title)s'" % {'title': result_issue['title'], 'number': result_issue['number']})
-		else:
-			print("Successfully created issue #%(number)d '%(title)s'" % {'title': result_issue['title'], 'number': result_issue['number']})
-		
-		if 'comments' in issue:
-			result_comments = import_comments(issue['comments'], result_issue['number'])		
-			print(" > Successfully added", len(result_comments), "comments.")
+			print("> Successfully closed issue.")
 		
 		result_issues.append(result_issue)
 	
